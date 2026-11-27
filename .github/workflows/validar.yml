@@ -1,0 +1,51 @@
+name: Validacion Despliegue
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Validar archivo PAREJA
+        run: |
+          test -f PAREJA
+          grep -qx "abarzua-rivera" PAREJA
+
+      - name: Validar sintaxis Docker Compose
+        working-directory: despliegue/orquestacion
+        run: docker compose config
+
+      - name: Levantar contenedores y esperar salud
+        working-directory: despliegue/orquestacion
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 30); do
+            BOVEDA=$(docker inspect --format='{{.State.Health.Status}}' abarzua-rivera-boveda 2>/dev/null || echo "starting")
+            NUCLEO=$(docker inspect --format='{{.State.Health.Status}}' abarzua-rivera-nucleo 2>/dev/null || echo "starting")
+            echo "Intento $i -> boveda: $BOVEDA | nucleo: $NUCLEO"
+            if [ "$BOVEDA" = "healthy" ] && [ "$NUCLEO" = "healthy" ]; then
+              break
+            fi
+            sleep 3
+          done
+          docker compose ps
+          [ "$BOVEDA" = "healthy" ] && [ "$NUCLEO" = "healthy" ]
+
+      - name: Probar endpoints y datos iniciales
+        run: |
+          curl -f http://localhost:9137/
+          curl -f http://localhost:9137/reclamos | grep -q "Luminaria apagada en pasaje 3"
+
+      - name: Probar persistencia tras reinicio
+        working-directory: despliegue/orquestacion
+        run: |
+          docker compose down
+          docker compose up -d
+          sleep 10
+          curl -f http://localhost:9137/reclamos | grep -q "Luminaria apagada en pasaje 3"
