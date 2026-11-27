@@ -1,0 +1,51 @@
+services:
+  boveda:
+    image: mariadb:10.11
+    container_name: abarzua-rivera-boveda
+    environment:
+      MARIADB_ROOT_PASSWORD: RootClave123
+      MARIADB_DATABASE: reclamos_db
+      MARIADB_USER: app_user
+      MARIADB_PASSWORD: AppClave123
+    volumes:
+      - registros:/var/lib/mysql
+      - ../datos/semilla.sql:/docker-entrypoint-initdb.d/semilla.sql
+    networks:
+      - enlace
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-pRootClave123"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nucleo:
+    build:
+      context: ../../fuente/servicio
+      dockerfile: ../imagen/Dockerfile
+    container_name: abarzua-rivera-nucleo
+    ports:
+      - "9137:8137"
+    environment:
+      PORT: "8137"
+      DB_HOST: boveda
+      DB_PORT: "3306"
+      DB_NAME: reclamos_db
+      DB_USER: app_user
+      DB_PASSWORD: AppClave123
+    depends_on:
+      boveda:
+        condition: service_healthy
+    networks:
+      - enlace
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8137/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  enlace:
+    driver: bridge
+
+volumes:
+  registros:
