@@ -20,7 +20,7 @@ services:
 
   nucleo:
     build:
-      context: ../../fuente/servicio
+      context: ../..
       dockerfile: ../../despliegue/imagen/Dockerfile
     container_name: abarzua-rivera-nucleo
     ports:
