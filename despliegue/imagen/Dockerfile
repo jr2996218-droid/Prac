@@ -1,8 +1,8 @@
 FROM node:20-alpine
 
 WORKDIR /app
-COPY package*.json ./
+COPY fuente/servicio/package*.json ./
 RUN npm install
-COPY . .
+COPY fuente/servicio/ .
 
 CMD ["node", "iniciar.js"]
